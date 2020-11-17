@@ -1,0 +1,248 @@
+/********************************
+
+   대쉬보드 전체에 적용되는 CSS 파일
+ 
+********************************/
+
+a {
+    text-decoration: none;
+}
+
+body {
+    padding: 30px;
+    width: 100%;
+    height: 100%;
+    background-color: rgb(36, 36, 36);
+    color: white;
+    font:20px/1.8 Arial, Helvetica, sans-serif;
+}
+
+
+div {
+    position:relative;
+    height:100%;
+    width:100%;
+    display: table;
+}
+
+h1 {
+    display: table-cell;
+    vertical-align: middle;
+    text-align:center;
+    padding-left: 80px;
+}
+
+
+
+.testBoard {
+    float: right;
+}
+
+.testBtns {
+    position: relative;
+    float: right;
+    width: 350px;
+    margin: 10px;
+    padding: 10px;
+}
+
+
+/********************************** ON-OFF 스위치 CSS *************************************/
+.switch {
+    float: right;
+}
+
+.onoffswitch {
+    display: block; position: relative; width: 76px; float: right;
+    -webkit-user-select:none; -moz-user-select:none; -ms-user-select: none;
+}
+.onoffswitch-checkbox {
+    display: none;
+}
+.onoffswitch-label {
+    display: block; overflow: hidden; cursor: pointer;
+    border: 2px solid #999999; border-radius: 20px;
+}
+.onoffswitch-inner {
+    display: block; width: 200%; margin-left: -100%;
+    transition: margin 0.3s ease-in 0s;
+}
+.onoffswitch-inner:before, .onoffswitch-inner:after {
+    display: block; float: left; width: 50%; height: 28px; padding: 0; line-height: 28px;
+    font-size: 17px; color: white; font-family: Trebuchet, Arial, sans-serif; font-weight: bold;
+    box-sizing: border-box;
+}
+.onoffswitch-inner:before {
+    content: "ON";
+    padding-left: 6px;
+    background-color: #A82745; color: #FFFFFF;
+}
+.onoffswitch-inner:after {
+    content: "OFF";
+    padding-right: 6px;
+    background-color: gray; color: #FFFFFF;
+    text-align: right;
+}
+.onoffswitch-switch {
+    display: block; width: 26px; height:26px; margin: 1px;
+    background: white;
+    position: absolute; top: 0; bottom: 0;
+    right: 44px;
+    border: 2px solid gray; border-radius: 20px;
+    transition: all 0.3s ease-in 0s; 
+}
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-inner {
+    margin-left: 0;
+}
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-switch {
+    right: 0px; 
+}
+/******************************* 스위치 CSS 여기까지 ************************************/
+
+
+.pad {
+    padding: 10px;
+}
+
+.totalFrame {
+    width: 1000px;
+    padding: 10px;
+    border: 5px solid white;
+    border-radius: 50px;
+    float: left;
+}
+
+.tTitle {
+    font-size: 30px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    clear: both;
+}
+
+.toothName {
+    font-size: 20px;
+    padding-bottom: 10px;
+}
+
+.frame01 {         /* 신발장, 우산꽃이 외부 프레임 */
+    width: 400px;
+    padding: 20px;
+    border: 2px solid white;
+    border-radius: 30px;
+    margin: 10px;
+    float: left;
+    clear: left;
+}
+
+.frame02 {         /* 신발장 내부 프레임 */
+    width: 250px;
+    padding: 10px 10px 10px 20px;
+    border: 1px solid black;
+    border-radius: 5px;
+    margin: 10px;
+    background-color: rgba(237,237,237,223);
+    color: black;
+    float: left;
+}
+
+
+.frame03 {         /* 욕실 외부 프레임 */
+    width: 470px;
+    padding: 20px;
+    border: 2px solid white;
+    border-radius: 30px;
+    margin: 10px;
+    float: right;
+}
+
+.frame04 {         /* 욕실 내부 습도 프레임 */
+    border: 1px solid black;
+    border-radius: 5px;
+    padding: 10px 10px 10px 20px;
+    margin: 10px;
+    width: 350px;
+    background-color: rgba(237,237,237,223);
+    color: black;
+}
+
+.frame05 {         /* 욕실 내부 칫솔 프레임 */
+    border: 1px solid black;
+    border-radius: 5px;
+    padding: 10px 10px 10px 20px;
+    margin: 10px;
+    width: 150px;
+    background-color: rgba(237,237,237,223);
+    color: black;
+    float: left;
+}
+.frame06 {         /* 더보기 버튼 프레임 */
+    border: 0px solid white;
+    border-radius: 3px;
+    width: 32px;
+    height: 32px; 
+    float: right;
+    background-color: rgba(36, 36, 36);
+}
+
+.frame07 {           /* 우산꽃이 시간 프레임 */
+    border: 1px solid black;
+    border-radius: 5px;
+    padding: 10px 10px 10px 20px;
+    margin: 10px;
+    width: 310px;
+    background-color: rgba(237,237,237,223);
+    color: black;
+}
+
+.frame08 {            /* 우산꽃이 날씨, 수위 프레임 */
+    border: 1px solid black;
+    border-radius: 5px;
+    padding: 10px;
+    margin: 10px;
+    width: 140px;
+    height: 180px;
+    background-color: rgba(237,237,237,223);
+    color: black;
+    float: left;
+    text-align: center;
+}
+
+.frame08 div {
+    padding: 10px 10px 0 10px; 
+    width: 120px;
+    text-align: center;
+    font-size: 17px;
+}
+
+#icon {
+    padding: 0px;
+    margin: 5px;
+}
+
+.frame09 {           /* 우산꽃이 FAN 프레임 */
+    border: 1px solid black;
+    border-radius: 5px;
+    padding: 10px 10px 10px 30px;
+    margin: 10px;
+    width: 200px;
+    background-color: rgba(237,237,237,223);
+    color: black;
+    float: left;
+}
+
+.frame10 {           /* 스피커 내부 프레임 */
+    border: 1px;
+    border-radius: 5px;
+    margin: 10px 0 -5px 80px;
+    width: 300px;
+}
+
+.frame10 img {
+    margin:0 20px 0 20px;
+}
+
+.frame11 {           /* 현관 내부 프레임 (빈 프레임) */
+    border: 1px;
+    width: 300px;
+    height: 15px;
+}

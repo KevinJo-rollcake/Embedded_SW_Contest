@@ -1,0 +1,282 @@
+#include <Arduino.h>
+
+#include <ESP8266WiFi.h>
+#include <ESP8266WiFiMulti.h>
+#include <WebSocketsClient.h>
+
+#include <SoftwareSerial.h>
+#include <Hash.h>
+#include <Timer.h>
+
+#define USE_SERIAL Serial
+
+
+const int trigPin_s = 13;
+const int echoPin_s = 15;
+
+const int sch_s=12;
+
+const int trigPin_n = 5;
+const int echoPin_n = 4;
+
+const int sch_n=D3;
+
+const int UV = D5;
+
+float dt_s, distance_s, dt_n, distance_n;
+float pre_distance_S = 0; //초음파 센서 값의 현재 값과 과거 값을 의미하는 변수, 필터의 역할 수행
+float pre_distance_N = 0;
+float cur_distance_S = 0;
+float cur_distance_N = 0;
+
+
+int shoe_FANs = 1;
+int shoe_FANn = 1;
+
+int oncnt_special = 0;  //cnt변수들은 서버로 통신할 때 한번만 데이터를 보낼 수 있도록 하는 변수
+int offcnt_special = 0;
+int oncnt_normal = 0;
+int offcnt_normal = 0;
+
+int state_cnt = 0;
+
+int Fans_ON =0;
+
+Timer t_normal;
+
+unsigned long pretime = 0;
+
+ESP8266WiFiMulti WiFiMulti;
+WebSocketsClient webSocket;
+
+void webSocketEvent(WStype_t type, uint8_t * payload, size_t lenght) { //웹소켓 함수
+    switch(type) {
+        case WStype_DISCONNECTED:
+            USE_SERIAL.printf("[WSc] Disconnected!\n");
+            break;
+        case WStype_CONNECTED:
+        {
+                USE_SERIAL.printf("[WSc] Connected to url: %s\n",  payload);
+        }
+                break;             
+        case WStype_TEXT: //사용자의 명령을 받는 부분
+        {
+            USE_SERIAL.printf("[WSc] get text: %s\n", payload);
+            String text = String((char *) &payload[0]);
+            if (text == "\"3fansOFF\"")
+            {
+              shoe_FANs = 0;
+            }
+
+            else if (text == "\"3fansON\"")
+            {
+              shoe_FANs = 1;
+            }
+
+            else if (text == "\"3fannOFF\"")
+            {
+              shoe_FANn = 0;
+            }
+
+            else if(text == "\"3fannON\"")
+            {
+              shoe_FANn = 1;
+            }
+        }
+            break;
+        case WStype_BIN:
+            USE_SERIAL.printf("[WSc] get binary lenght: %u\n", lenght);
+            hexdump(payload, lenght);
+            break;
+    }
+}
+
+WiFiClient client;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(sch_s, OUTPUT);
+  digitalWrite(sch_s, LOW);
+  pinMode(UV, OUTPUT);
+
+ pinMode(trigPin_s, OUTPUT);
+ digitalWrite(trigPin_s, LOW);
+ pinMode(echoPin_s, INPUT);
+ 
+ pinMode(sch_n, OUTPUT);
+ digitalWrite(sch_n, LOW);
+ 
+ pinMode(trigPin_n, OUTPUT);
+ digitalWrite(trigPin_n, LOW);
+ pinMode(echoPin_n, INPUT);
+
+ t_normal.oscillate(sch_n, 10000, LOW); //노말칸의 FAN이 10초 에 한번 꺼졌다 켜졌다 할 수 있도록 한다.
+ 
+ USE_SERIAL.setDebugOutput(true);
+
+ USE_SERIAL.println();
+ USE_SERIAL.println();
+ USE_SERIAL.println();
+ for(uint8_t t = 4; t > 0; t--) {
+        USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);
+        USE_SERIAL.flush();
+        delay(1000);
+    }
+
+    WiFiMulti.addAP("Waynejo", "12345678a");
+
+    while(WiFiMulti.run() != WL_CONNECTED) {
+        delay(100);
+       Serial.println(".");
+    }
+    webSocket.begin("13.125.160.216",9998); //원래 192.168.43.239, 81 >>>>> aws가 아닌 사용하던 기존 핫스팟 데이터
+    //13.209.73.198, 9998 (aws)
+    webSocket.onEvent(webSocketEvent);
+}
+
+void special() // 스페셜 칸의 작동 함수
+{
+  digitalWrite(trigPin_s, LOW);
+ delayMicroseconds(2);
+ digitalWrite(trigPin_s, HIGH);
+ delayMicroseconds(10);
+ digitalWrite(trigPin_s, LOW);
+ dt_s = pulseIn(echoPin_s, HIGH);
+ distance_s = dt_s * 17 / 1000;
+ 
+ cur_distance_S = distance_s;
+ distance_s =(cur_distance_S * 0.2) + (pre_distance_S * 0.8); //필터
+ pre_distance_S=distance_s;
+ 
+ unsigned long curtime = millis();
+ 
+ if(shoe_FANs == 1) // 초기 및 사용자가 원할 때만 작동하도록 한다.
+ {
+  if(distance_s < 6.00)
+     {
+      if(oncnt_special == 0)
+      {
+        webSocket.sendTXT("3shoesEX"); // 신발이 있음
+        oncnt_special = 1;
+        offcnt_special = 0;
+      }
+      
+      if(curtime - pretime < 10000)
+      {
+        digitalWrite(sch_s, HIGH);
+        digitalWrite(UV, HIGH);
+      }
+      else 
+      {
+        digitalWrite(sch_s, LOW);
+        digitalWrite(UV, LOW);
+      }
+     }
+  else
+    {
+     if(offcnt_special == 0)
+     {
+       webSocket.sendTXT("3shoesNO"); // 신발 없음
+       offcnt_special = 1;
+       oncnt_special = 0;
+     }
+     digitalWrite(sch_s, LOW);
+     digitalWrite(UV, LOW);
+     pretime = millis();
+    }
+ }
+
+ else if(shoe_FANs == 0)
+ {
+  digitalWrite(sch_s, LOW);
+  digitalWrite(UV, LOW);
+  if(distance_s < 6.00)
+  {
+  if(oncnt_special == 0)
+      {
+        webSocket.sendTXT("3shoesEX"); //FAN은 작동하지 않지만 신발이 있음을 알림.
+        oncnt_special = 1;
+        offcnt_special = 0;
+      }
+  pretime = millis();
+  }
+  else
+  {
+      if(offcnt_special == 0)
+      {
+       webSocket.sendTXT("3shoesNO"); //신발이 없음
+       offcnt_special = 1;
+       oncnt_special = 0;
+      }
+  pretime = millis();
+  }
+ }
+}
+
+void normal() // 노말 칸의 작동 함수, 대부분의 내용은 스페셜칸의 작동함수와 동일하다.
+{
+ digitalWrite(trigPin_n, LOW);
+ delayMicroseconds(2);
+ digitalWrite(trigPin_n, HIGH);
+ delayMicroseconds(10);
+ digitalWrite(trigPin_n, LOW);
+ dt_n = pulseIn(echoPin_n, HIGH);
+ distance_n = dt_n * 17 / 1000;
+ 
+ cur_distance_N = distance_n;
+ distance_n =(cur_distance_N * 0.2) + (pre_distance_N * 0.8);
+ pre_distance_N=distance_n;
+if(shoe_FANn == 1)
+{
+ if (distance_n < 8)
+    {
+    if(oncnt_normal == 0)
+      {
+        webSocket.sendTXT("3shoenEX");
+        oncnt_normal = 1;
+        offcnt_normal = 0;
+      }
+    t_normal.update();
+    }
+  else
+    {
+      if(offcnt_normal == 0)
+     {
+       webSocket.sendTXT("3shoenNO");
+       offcnt_normal = 1;
+       oncnt_normal = 0;
+     }
+    digitalWrite(sch_n, LOW);
+    }
+ }
+ else if(shoe_FANn == 0)
+ {
+  digitalWrite(sch_n, LOW);
+  if(distance_n < 8)
+  {
+  if(oncnt_normal == 0)
+      {
+        webSocket.sendTXT("3shoenEX");
+        oncnt_normal = 1;
+        offcnt_normal = 0;
+        t_normal.update();
+      }
+  }
+  else
+     {
+      if(offcnt_normal == 0)
+      {
+       webSocket.sendTXT("3shoenNO");
+       offcnt_normal = 1;
+       oncnt_normal = 0;
+      }
+     }
+ }
+}
+
+void loop()
+{
+ webSocket.loop();
+ special();
+ normal();
+}

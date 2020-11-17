@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="stylesheet" href="./websocketMore.css">
+    <title>소재별 신발 세탁</title>
+    <style>
+        p {
+            font-size: 15px;
+        }
+        .a {
+            text-indent: 2em;
+        }
+    </style>
+</head>
+<body>
+    <h1>
+        <span style="margin: 0 10px 0 -30px;">
+            <a href="javascript:history.back();"><img src="images/goBack.png" alt="More"></img></a>
+        </span>
+        소재별 신발 세탁법
+    </h1>
+    <p>-흰색 캔버스</p>
+    <p> (1)깨끗한 물에 충분히 담가 때를 불린다.<br>
+        (2)오염된 부분은 다쓴 칫솔을 활용해 닦아낸다.(표백제 사용금지)<br>
+        (3)비눗물을 충분히 뺀 후 다시 깨끗한 물에 담궈둔다.<br>
+        (4)물에서 건진 후 그늘에 말린다.</p>
+    <p>-컬러 캔버스</p>
+    <p> (1)신발끈을 분리한다.<br>
+        (2)중성세제를 풀어놓은 미지근한 물에 20분 담궈 불린다.<br>
+        (3)오염된 부분은 칫솔로 닦아내고 맑은 물로 헹군다.<br>
+        (4)바람이 잘 통하는 그늘에 40도 정도로 뉘어 말린다.</p>
+    <p>-가죽 운동회</p>
+    <p> (1)신발 끈과 깔창은 세탁 전 분리한다.<br>
+        (2)신발 끈과 깔창은 중성세제로 세탁한다.<br>
+        (3)운동화는 물세탁을 하지 않고 가죽크리너를 운동화 겉면에 얇게 문질러 발라둔다.<br>
+        (4)1분 정도 기다린 후 흰 천으로 가죽 표면을 닦아낸다.<br>
+        (5)물세탁이 힘든 가죽 특성상 냄새가 날 수 있는데, 운동화에 베이킹 소다를 뿌려놓으면 냄새를 잡을 수 있다.</p>
+    <p>-일반 운둥화</p>    
+    <p> (1)신발 끈과 깔창을 분리한다.<br>
+        (2)신발에 묻은 흙은 세탁전 한번 털어낸다.<br>
+        (3)미지근한 물에 운동화와 깔창, 신발끈을 불린후 가볍게 세척한다.<br>
+        (4)운동화를 충분히 헹궈낸 후 그늘에 말리되 급하다고 해서 헤어드라이기를 이용해 건조하게 되면 변색이나 접착 부분이 떨어질 수 있으니 반드시 주의해주세요.</p>
+    </body>
+</html>

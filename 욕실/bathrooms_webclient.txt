@@ -1,0 +1,278 @@
+#include <Arduino.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266WiFiMulti.h>
+#include <WebSocketsClient.h>
+#include <Hash.h>
+
+ESP8266WiFiMulti WiFiMulti;		// esp8266 와이파이
+
+WebSocketsClient webSocket;	//웹소켓
+
+#define USE_SERIAL Serial
+
+int cur_val;
+int pre_val = LOW;
+int RESET_1;
+int RESET_2;
+int brush_1;
+int brush_2;
+int count_1=0;
+int count_2=0;                  // 칫솔걸이 기본 변수 설정
+
+String DA1;
+String Tooth1DA;
+String DA2;
+String Tooth2DA;
+int a = 0;
+int b = 0;
+int c = 0;
+int d = 0;		// 서버로 데이터 전송하기 위한 변수와 문자열 설정
+
+void webSocketEvent(WStype_t type, uint8_t * payload, size_t lenght) {              //웹서버 클라이언트
+    switch(type) {
+        case WStype_DISCONNECTED:
+                USE_SERIAL.printf("[WSc] Disconnected!\n");
+            break;
+            
+        case WStype_CONNECTED:
+            {
+                USE_SERIAL.printf("[WSc] Connected to url: %s\n",  payload);
+                   // send message to server when Connected
+                webSocket.sendTXT("Connected");
+            }
+            break;
+
+        case WStype_TEXT:
+            USE_SERIAL.printf("[WSc] get text: %s\n", payload);
+              // send message to server
+              // webSocket.sendTXT("message here");
+            break;
+
+        case WStype_BIN:
+            USE_SERIAL.printf("[WSc] get binary lenght: %u\n", lenght);
+            hexdump(payload, lenght);
+              // send data to server
+              // webSocket.sendBIN(payload, lenght);
+            break;
+    }
+}
+
+void setup() {
+    // USE_SERIAL.begin(921600);
+    USE_SERIAL.begin(115200);
+    //Serial.setDebugOutput(true);
+    USE_SERIAL.setDebugOutput(true);
+    USE_SERIAL.println();
+    USE_SERIAL.println();
+    USE_SERIAL.println();
+
+    for(uint8_t t = 4; t > 0; t--) {
+          USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);
+          USE_SERIAL.flush();
+          delay(1000);
+      }
+
+    WiFiMulti.addAP("jerem의 iPhone","01020909861");
+    //WiFi.disconnect();
+
+    while(WiFiMulti.run() != WL_CONNECTED) {
+        delay(100);
+    }
+
+    webSocket.begin("13.125.160.216",9998);   // 13.125.160.216:9998 아마존 서버 ip
+    webSocket.onEvent(webSocketEvent);
+
+    // 화장실 코딩
+    pinMode(D0,INPUT); 	 // brush_1
+    pinMode(D1,INPUT); 	// brush_2
+    pinMode(D2,INPUT); 	// motion
+    pinMode(D5,INPUT); 	// switch1
+    pinMode(D4,INPUT); 	// switch2
+    pinMode(D6,OUTPUT); 	// UV
+    pinMode(D7,OUTPUT); 	// LED1
+    pinMode(D8,OUTPUT); 	// LED2
+}
+
+void TOOTHB() { 		// 칫솔걸이 함수
+
+    // 칫솔걸이 코딩
+    cur_val = digitalRead(D2);
+    brush_1 = digitalRead(D0);
+    brush_2 = digitalRead(D1);
+    RESET_1 = digitalRead(D5);
+    RESET_2 = digitalRead(D4); 	// 센서로부터 값 받기
+  
+   if(pre_val != cur_val){ 		// 모션센서 인식
+      digitalWrite(D6,LOW);
+
+    if(RESET_1 == LOW){ 		// 스위치로 칫솔1 사용횟수 초기화
+      count_1 = 0;
+      String DA1 = String(count_1);
+      Tooth1DA = "5toothbrush1:" + DA1;
+      webSocket.sendTXT(Tooth1DA);
+      delay(500);
+      Serial.println("toothbrush 1 is RESET");
+      Serial.println(count_1);
+    }
+    if(RESET_2 == LOW){ 		// 스위치로 칫솔2 사용횟수 초기화
+      count_2 = 0;
+      String DA2 = String(count_2);
+      Tooth2DA = "5toothbrush2:" + DA2;
+      webSocket.sendTXT(Tooth2DA);
+      delay(500);
+      Serial.println("toothbrush 2 is RESET");
+      Serial.println(count_2);
+    }
+    
+    if(brush_1 == HIGH && a == 0){ 		// 칫솔1번이 인식되지 않았다면
+      count_1 = count_1 + 1;
+      if(brush_1 == HIGH){ 		// 계속 인지가 되지 않으면 사용횟수 서버로 전송
+        webSocket.sendTXT("5tooth1NO");
+        String DA1 = String(count_1);
+        Tooth1DA = "5toothbrush1:" + DA1;
+        webSocket.sendTXT(Tooth1DA);
+        a = 1;
+        b = 0;
+        }
+    }
+    else if(brush_1 == LOW && b == 0){ 	// 칫솔1번이 인식된다면
+        count_1 = count_1;
+        if(brush_1 == LOW){ 		// 계속 인지가 되면 서버로 사용횟수 전송
+        webSocket.sendTXT("5tooth1EX");
+        String DA1 = String(count_1);
+        Tooth1DA = "5toothbrush1:" + DA1;
+        webSocket.sendTXT(Tooth1DA);
+        b = 1;
+        a = 0;
+      }
+    }
+
+    if(brush_2 == HIGH && c == 0){ 		// 아래 코드는 칫솔 1번과 동일
+      count_2 = count_2 + 1;
+      if(brush_2 == HIGH){
+        webSocket.sendTXT("5tooth2NO");
+        String DA2 = String(count_2);
+        Tooth2DA = "5toothbrush2:" + DA2;
+        webSocket.sendTXT(Tooth2DA);
+        c = 1;
+        d = 0;
+        }
+    }
+    else if(brush_2 == LOW && d == 0){
+        count_1 = count_1;
+        if(brush_2 == LOW){
+        webSocket.sendTXT("5tooth2EX");
+        String DA2 = String(count_2);
+        Tooth2DA = "5toothbrush2:" + DA2;
+        webSocket.sendTXT(Tooth2DA);
+        d = 1;
+        c = 0;
+      }
+    }
+    
+    if(count_1 > 20){ 		// 사용횟수가 20번이 넘어가면 LED가 깜빡인다
+      Serial.println("You have to Change toothbrush_1!");
+      digitalWrite(D7,HIGH);
+      delay(500);
+      digitalWrite(D7,LOW);
+      delay(500);
+    }
+    if(count_2 > 20){
+      Serial.println("You have to Change toothbrush_2!");
+      digitalWrite(D8,HIGH);
+      delay(500);
+      digitalWrite(D8,LOW);
+      delay(500);
+    }
+
+   }
+
+   else if(pre_val == cur_val){ 		// 모션이 감지가 되지않으면, 그 이후 코딩은 위와 동일
+      digitalWrite(D6,HIGH);
+
+      if(RESET_1 == LOW){
+      count_1 = 0;
+      String DA1 = String(count_1);
+      Tooth1DA = "5toothbrush1:" + DA1;
+      webSocket.sendTXT(Tooth1DA);
+      delay(500);
+      Serial.println("toothbrush 1 is RESET");
+      Serial.println(count_1);
+    }
+    if(RESET_2 == LOW){
+      count_2 = 0;
+      String DA2 = String(count_2);
+      Tooth2DA = "5toothbrush2:" + DA2;
+      webSocket.sendTXT(Tooth2DA);
+      delay(500);
+      Serial.println("toothbrush 2 is RESET");
+      Serial.println(count_2);
+    }
+    
+    if(brush_1 == HIGH && a == 0){
+      count_1 = count_1 + 1;
+      if(brush_1 == HIGH){
+        webSocket.sendTXT("5tooth1NO");
+        String DA1 = String(count_1);
+        Tooth1DA = "5toothbrush1:" + DA1;
+        webSocket.sendTXT(Tooth1DA);
+        a = 1;
+        b = 0;
+        } 
+    }
+    else if(brush_1 == LOW && b == 0){
+        count_1 = count_1;
+        if(brush_1 == LOW){
+        webSocket.sendTXT("5tooth1EX");
+        String DA1 = String(count_1);
+        Tooth1DA = "5toothbrush1:" + DA1;
+        webSocket.sendTXT(Tooth1DA);
+        b = 1;
+        a = 0;
+      }
+    }
+
+    if(brush_2 == HIGH && c == 0){
+      count_2 = count_2 + 1;
+      if(brush_2 == HIGH){
+        webSocket.sendTXT("5tooth2NO");
+        String DA2 = String(count_2);
+        Tooth2DA = "5toothbrush2:" + DA2;
+        webSocket.sendTXT(Tooth2DA);
+        c = 1;
+        d = 0;
+        }
+    }
+    else if(brush_2 == LOW && d == 0){
+        count_1 = count_1;
+        if(brush_2 == LOW){
+        webSocket.sendTXT("5tooth2EX");
+        String DA2 = String(count_2);
+        Tooth2DA = "5toothbrush2:" + DA2;
+        webSocket.sendTXT(Tooth2DA);
+        d = 1;
+        c = 0;
+      }
+    }
+    
+    if(count_1 > 20){
+      Serial.println("You have to Change toothbrush_1!");
+      digitalWrite(D7,HIGH);
+      delay(500);
+      digitalWrite(D7,LOW);
+      delay(500);
+    }
+    if(count_2 > 20){
+      Serial.println("You have to Change toothbrush_2!");
+      digitalWrite(D8,HIGH);
+      delay(500);
+      digitalWrite(D8,LOW);
+      delay(500);
+    }
+   }
+ }
+
+void loop(){
+  webSocket.loop(); 		// 웹소켓 루프문 동작
+  TOOTHB();		// 칫솔걸이 함수 동작
+}

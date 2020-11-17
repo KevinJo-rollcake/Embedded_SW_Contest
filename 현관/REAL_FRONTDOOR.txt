@@ -1,0 +1,179 @@
+wkdrns#include <Arduino.h>
+
+#include <ESP8266WiFi.h>
+#include <ESP8266WiFiMulti.h>
+#include <WebSocketsClient.h>
+
+#include <SoftwareSerial.h>
+#include <Hash.h>
+
+#define USE_SERIAL Serial
+
+const char* ssid = "Waynejo";            
+const char* pass = "12345678a";
+
+const int trig_in = 14;
+const int echo_in = 12;
+const int trig_out = 5;
+const int echo_out = 4;
+
+const int LED1 = 16;
+const int LED2 = 2;
+float d_in, distance_in, d_out, distance_out;
+float cur_dist_in, pre_dist_in, cur_dist_out, pre_dist_out; //초음파 센서 값의 현재 값과 과거 값을 의미하는 변수, 필터의 역할 수행
+
+unsigned long prev_time, current_time;
+
+int out_cnt=0; //cnt변수들은 서버로 통신할 때 한번만 데이터를 보낼 수 있도록 하는 변수
+int in_cnt=0;
+
+ESP8266WiFiMulti WiFiMulti;
+WebSocketsClient webSocket;
+
+void webSocketEvent(WStype_t type, uint8_t * payload, size_t lenght) { //웹소켓 함수
+
+    switch(type) {
+        case WStype_DISCONNECTED:
+            USE_SERIAL.printf("[WSc] Disconnected!\n");
+            break;
+        case WStype_CONNECTED:
+        {
+                USE_SERIAL.printf("[WSc] Connected to url: %s\n",  payload);
+        }
+                break;             
+        case WStype_TEXT:
+        {
+            USE_SERIAL.printf("[WSc] get text: %s\n", payload);
+            String text = String((char *) &payload[0]);            
+        }
+            break;
+        case WStype_BIN:
+        {
+            USE_SERIAL.printf("[WSc] get binary lenght: %u\n", lenght);
+            hexdump(payload, lenght);
+
+            // send data to server
+            // webSocket.sendBIN(payload, lenght);
+        }
+            break;
+    }
+}
+
+WiFiClient client;
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(trig_in, OUTPUT);
+  pinMode(echo_in, INPUT);       // 안쪽 sonar 세팅
+  pinMode(trig_out, OUTPUT);
+  pinMode(echo_out, INPUT);      // 바깥쪽 sonar 세팅
+  pinMode(LED1, OUTPUT);
+  digitalWrite(LED1, LOW);
+  pinMode(LED2, OUTPUT);
+  digitalWrite(LED2, LOW);
+
+  USE_SERIAL.setDebugOutput(true);
+
+  USE_SERIAL.println();
+  USE_SERIAL.println();
+  USE_SERIAL.println();
+
+  for(uint8_t t = 4; t > 0; t--) {
+      USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);
+      USE_SERIAL.flush();
+      delay(1000);
+  }
+
+  WiFiMulti.addAP("Waynejo", "12345678a");
+
+    while(WiFiMulti.run() != WL_CONNECTED) {
+        delay(100);
+        Serial.println(".");
+    }
+    
+    webSocket.begin("13.209.73.198",9998); //원래 192.168.43.239, 81 >>>>> aws가 아닌 사용하던 기존 핫스팟 데이터
+    //13.209.73.198, 9998 (aws)
+    webSocket.onEvent(webSocketEvent);
+}
+
+void inAndout() // 외출 및 출입 감지
+{
+  digitalWrite(trig_in, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trig_in, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trig_in, LOW);
+  d_in = pulseIn(echo_in, HIGH);
+  distance_in = d_in /29 / 2;
+
+  cur_dist_in = distance_in;
+  distance_in =(cur_dist_in * 0.1) + (pre_dist_in * 0.9); // 필터
+  pre_dist_in=distance_in;
+
+  prev_time = millis();
+  
+  
+  if (distance_in < 6) {                     // 안쪽 sonar 먼저 감지하면
+    while ((millis() - prev_time) < 1000) {  // 1초동안 loop 걸고
+
+      digitalWrite(trig_out, LOW);
+      delayMicroseconds(2);
+      digitalWrite(trig_out, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(trig_out, LOW);
+      d_out = pulseIn(echo_out, HIGH);
+      distance_out = d_out /29 / 2;
+
+      cur_dist_out = distance_out;
+      distance_out =(cur_dist_out * 0.1) + (pre_dist_out * 0.9); // 필터
+      pre_dist_out = distance_out;
+
+      if (distance_out < 6) {               // 그동안에 바깥쪽도 감지? 외출
+        webSocket.sendTXT("1OUT");
+        Serial.println("Going Out");
+        break;
+      }
+    }
+  }
+
+  digitalWrite(trig_out, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trig_out, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trig_out, LOW);
+  d_out = pulseIn(echo_out, HIGH);
+  distance_out = d_out /29 / 2;
+
+  cur_dist_out = distance_out;
+  distance_out =(cur_dist_out * 0.1) + (pre_dist_out * 0.9); // 필터
+  pre_dist_out = distance_out;
+  
+  if (distance_out < 6) {                      // 바깥쪽 sonar 먼저 감지하면
+    while ((millis() - prev_time) < 1000) {    // 1초동안 loop 걸고
+      digitalWrite(trig_in, LOW);
+      delayMicroseconds(2);
+      digitalWrite(trig_in, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(trig_in, LOW);
+      d_in = pulseIn(echo_in, HIGH);
+      distance_in = d_in /29 / 2;
+
+      cur_dist_in = distance_in;
+      distance_in =(cur_dist_in * 0.1) + (pre_dist_in * 0.9);
+      pre_dist_in=distance_in;
+  
+      if (distance_in < 6) {                   // 그동안에 안쪽도 감지? 진입
+        webSocket.sendTXT("1IN");
+        Serial.println("Return Home");
+        break;
+      }
+    }
+  } 
+}
+
+void loop() {
+  webSocket.loop();
+
+  inAndout();
+ 
+}

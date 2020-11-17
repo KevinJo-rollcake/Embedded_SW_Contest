@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title> Smart Home Project </title>
+    <link rel="stylesheet" href="./websocket.css">
+    <script src="webOSjs-0.1.0/webOS.js" charset="utf-8"></script>
+    <script src="websocket.js" charset="utf-8"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.js"></script> <!--구글 스프레드시트 연동-->
+</head>
+<body>
+    <h1> Smart Home 대쉬보드 
+        <img id="connection" src="images/disconnect.png" style="padding-left: 10px">
+        <span style="font-size: 30px; padding-left: 40px;" id="clock"></span>
+    </h1>
+    <div name="totalDiv" style="width:1500px; padding:20px;">
+
+    <form name="myform">
+        <div class="totalFrame">     <!--------------------------------------- 대시보드 전체 프레임 ----------------------------------------------->
+            <div class="frame01">            <!-------------------------------- 신발장 프레임 ------------------------------->
+                <span class="tTitle"> 신발장 </span>
+                <div class="frame06">
+                    <span>
+                       <!-- <input type="image" src="/plus10.png" id="shoedetail" alt="Submit" > -->
+                       <a href="shoe.html" target="blank"><img src="images/plus10.png"  alt="More"></img></a>
+                    </span>
+                </div>
+                <div class="frame02" id="specialFrame">
+                    <span id="sFont"> Special Care </span>
+                    <div class="onoffswitch">
+                            <input type="checkbox" id="specialBtn" name="specialBtn" class="onoffswitch-checkbox" onclick="changeSpecial();" disabled>
+                            <label class="onoffswitch-label" for="specialBtn">
+                                <span class="onoffswitch-inner"></span>
+                                <span class="onoffswitch-switch"></span>
+                            </label>
+                    </div>
+                </div>
+                <div class="frame02" id="normalFrame">
+                    <span id="nFont"> Normal Care </span>
+                    <div class="onoffswitch">
+                        <input type="checkbox" id="normalBtn" name="normalBtn" class="onoffswitch-checkbox" onclick="changeNormal();" disabled>
+                        <label class="onoffswitch-label" for="normalBtn">
+                            <span class="onoffswitch-inner"></span>
+                            <span class="onoffswitch-switch"></span>
+                        </label>
+                    </div>
+                </div>         
+            </div>
+            <div class="frame03">          <!--------------------------------- 욕실 프레임 ---------------------------------->
+                <span class="tTitle"> 욕실 </span>
+                <div class="frame06">
+                    <span>
+                        <a href="bath.html" target="blank"><img src="images/plus10.png"  alt="More"></img></a>
+                    </span>
+                </div>
+                <div class="frame04">             
+                    <span style="color:black;"> 현재 습도 : <span id="humid"> - -.- - </span> % </span>
+                    <span style="color:black; margin-left:10px;"> 자동 FAN </span>
+                    <div class="onoffswitch">
+                        <input type="checkbox" id="bFanBtn" name="bFanBtn" class="onoffswitch-checkbox" onclick="changeBathfan();">
+                        <label class="onoffswitch-label" for="bFanBtn">
+                            <span class="onoffswitch-inner"></span>
+                            <span class="onoffswitch-switch"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="frame05" id="tframeA">
+                    <div class="toothName"> 칫솔 A </div>
+                    <span> 사용횟수 : <span id="tnumA"> - - </span> 회 <br>
+                        <span> 상태 : <span id="tstatA"> unknown </span> </span>
+                    </span>
+                </div>
+                <div class="frame05" id="tframeB">
+                    <div class="toothName"> 칫솔 B </div>
+                    <span> 사용횟수 : <span id="tnumB"> - - </span> 회 <br>
+                        <span> 상태 : <span id="tstatB"> unknown </span></span>
+                    </span>
+                </div>
+            </div>
+            <div class="frame01">           <!------------------------------------- 우산꽂이 프레임 -------------------------------------->
+                <span class="tTitle"> 우산꽂이 </span>
+                <div class="frame06">
+                    <span>
+                        <a href="umbrella.html" target="blank"><img src="images/plus10.png"  alt="More"></a>
+                    </span>
+                </div><br>
+                <div class="frame08">
+                    <span> 오늘의 날씨 <br></span>
+                    <span style="font-size: 15px">(<span id="umbTime">00:00</span> 기준)</span>
+                    <img id="weather" style="margin-top:10px" width="80" height="80" src="images/loading.png">
+                </div>
+                <div class="frame08">
+                    <span> 물통 수위 <br><img id="water" style="margin:30px 0 18.5px 0" width="80" height="80" src="images/raindrop-clear.png"></span>
+                </div>
+                <div class="frame09" id="umbFrame">
+                    <span> FAN </span>
+                    <div class="onoffswitch">
+                        <input type="checkbox" id="umbBtn" name="umbBtn" class="onoffswitch-checkbox" onclick="changeUmb();" disabled>
+                        <label class="onoffswitch-label" for="umbBtn">
+                            <span class="onoffswitch-inner"></span>
+                            <span class="onoffswitch-switch"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="frame03">      <!---------------------------------------- 스피커 프레임 -------------------------------------->
+                <span class="tTitle"> 스피커 </span>
+                <div class="frame06">
+                    <span>
+                            <a href="speaker.html" target="blank"><img src="images/plus10.png"  alt="More"></a>
+                    </span>
+                </div>
+                <div class="frame10">
+                    <img src="images/previous.png" onclick="doSend('2musicPrevious');">
+                    <img id="play" src="images/play.png" onclick="playChange();">
+                    <img src="images/next.png" onclick="doSend('2musicNext');">
+                </div>
+            </div>
+            <div class="frame03">      <!---------------------------------------- 현관 프레임 --------------------------------------->
+                <span class="tTitle"> 현관 </span>
+                <div class="frame06">
+                    <span>
+                            <a href="door.html" target="blank"><img src="images/plus10.png"  alt="More"></a>
+                    </span>
+                </div>
+                <div class="frame11"></div>
+            </div>
+        </div>
+    </form>
+    
+    <!--------------------------------------------------------- 테스트 로그 창 ------------------------------------------------------------->
+    <textarea class="testBoard" id="outText" name="outputtext" rows="25" cols="50" disabled></textarea>
+
+    <div class="testBtns">         <!------------------------------ 기능 테스트 메뉴들 ------------------------------->
+        <input type="button" name="clearButton" value="Clear" onClick="clearText();">
+        <input type="button" name="disconnectButton" value="Disconnect" onClick="doDisconnect();">
+        <input type="button" name="connectButton" value="Connect" onClick="doConnect();"><br>
+        <input type="button" value="Special In" onClick="specialShoeIn();">
+        <input type="button" value="Special Out" onClick="specialShoeOut();">
+        <input type="button" value="Normal In" onClick="normalShoeIn();">
+        <input type="button" value="Normal Out" onClick="normalShoeOut();"><br>
+        <input type="text" size="3" id="humIn" placeholder="습도" autocomplete="off">
+        <input type="button" value="Go" onClick="humidChange(document.getElementById('humIn').value);">
+        <input type="text" size="3" id="tAnum" placeholder="칫솔A" autocomplete="off">
+        <input type="button" value="Go" onClick="tAchange(document.getElementById('tAnum').value);">
+        <input type="text" size="3" id="tBnum" placeholder="칫솔B" autocomplete="off">
+        <input type="button" value="Go" onClick="tBchange(document.getElementById('tBnum').value);"><br>
+        <input type="button" value="tAin" onClick="tAin();">
+        <input type="button" value="tAout" onClick="tAout();">
+        <input type="button" value="tBin" onClick="tBin();">
+        <input type="button" value="tBout" onClick="tBout();"><br>
+        <input type="button" value="sunny" onClick="document.getElementById('weather').src='images/sunny.png';">
+        <input type="button" value="cloudy" onClick="document.getElementById('weather').src='images/cloudy.png';">
+        <input type="button" value="rainy" onClick="document.getElementById('weather').src='images/rainy.png';">
+        <input type="button" value="snowy" onClick="document.getElementById('weather').src='images/snowy.png';">
+        <input type="button" value="full" onClick="waterFull();">
+        <input type="button" value="empty" onClick="document.getElementById('water').src='images/raindrop-clear.png';"><br>
+        <input type="button" value="umbIn" onClick="umbIn();">
+        <input type="button" value="umbOut" onClick="umbOut();">
+        <input type="text" size="3" id="uTime" placeholder="날씨시간" autocomplete="off">
+        <input type="button" value="umbTime" onclick="uTimeChange(document.getElementById('uTime').value);">
+    </div>
+    </div>
+    
+</body>
+</html>

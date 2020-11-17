@@ -1,0 +1,374 @@
+var wsUrl = "ws://13.125.160.216:9998"     // 서버 주소
+
+function init()  {     // 초기 (시작) 함수
+  document.getElementsByName("disconnectButton").disabled = true;
+  doConnect();
+  clockInit();
+}
+
+function doConnect()  {      // 서버 연결 함수
+  websocket = new WebSocket(wsUrl);
+  websocket.onopen = function(evt) { onOpen(evt) };
+  websocket.onclose = function(evt) { onClose(evt) };
+  websocket.onmessage = function(evt) { onMessage(evt) };
+  websocket.onerror = function(evt) { onError(evt) };
+}
+
+function onOpen(evt)  {      // 서버와 연결되었을 경우 행동
+  writeToScreen("connected\n");
+  document.getElementById("connection").src = "images/connect.png";
+  document.getElementsByName("connectButton").disabled = true;
+  document.getElementsByName("disconnectButton").disabled = false;
+}
+
+function onClose(evt)  {     // 서버와 연결 끊겼을 경우 행동
+  writeToScreen("disconnected\n");
+  document.getElementById("connection").src = "images/disconnect.png";
+  document.getElementsByName("connectButton").disabled = false;
+  document.getElementsByName("disconnectButton").disabled = true;
+}
+
+function onMessage(evt)  {     // 서버로부터 메시지 수신 시 행동
+  var msgData = evt.data;
+  writeToScreen("response: " + msgData + '\n');
+
+  switch (msgData) {          // 각 데이터 수신 시 해당하는 기능들 작동
+    case '"3shoesEX"':
+      specialShoeIn();
+      break;
+    case '"3shoesNO"':
+      specialShoeOut();
+      break;
+    case '"3shoenEX"':
+      normalShoeIn();
+      break;
+    case '"3shoenNO"':
+      normalShoeOut();
+      break;
+    case '"4umbEX"':
+      umbIn();
+      break;
+    case '"4umbNO"':
+      umbOut();
+      break;
+    case '"4waterFull"':
+      waterFull();
+      break;
+    case '"4waterEmpty"':
+      document.getElementById('water').src='images/raindrop-clear.png';
+      break;
+    case '"4sunny"':
+      document.getElementById('weather').src='images/sunny.png';
+      break;
+    case '"4cloudy"':
+      document.getElementById('weather').src='images/cloudy.png';
+      break;
+    case '"4rainy"':
+      document.getElementById('weather').src='images/rainy.png';
+      break;
+    case '"4snowy"':
+      document.getElementById('weather').src='images/snowy.png';
+    case '"5tooth1EX"':
+      tAin();
+      break;
+    case '"5tooth1NO"':
+      tAout();
+      break;
+    case '"5tooth2EX"':
+      tBin();
+      break;
+    case '"5tooth2NO"':
+      tBout();
+      break;
+    case '"1IN"':
+      doorIn();
+      break;
+    case '"1OUT"':
+      doorOut();
+      break;
+  }
+
+  if (msgData.substring(1,6) == '4time') {      // msgData == "4time:00" 일때
+    var uIndex = msgData.indexOf('"', 6);
+    var uTime = msgData.substring(7,uIndex);
+    uTimeChange(uTime);
+  }
+
+  if (msgData.substring(1,13) == '5toothbrush1') {      // msgData == "5toothbrush1:00" 일때
+    var tIndex = msgData.indexOf('"',13);
+    var tTime = msgData.substring(14,tIndex);
+    tAchange(tTime);
+  }
+
+  if (msgData.substring(1,13) == '5toothbrush2') {      // msgData == "5toothbrush1:00" 일때
+    var tIndex = msgData.indexOf('"',13);
+    var tTime = msgData.substring(14,tIndex);
+    tBchange(tTime);
+  }
+
+  if (msgData.substring(1,10) == '6Humidity') {          // msgData == "6Humidity:00" 일때
+    var hIndex = msgData.indexOf('"', 10);
+    var hTime = msgData.substring(11, hIndex);
+    humidChange(hTime);
+  }
+}
+
+function onError(evt)  {        // 에러 발생 시 행동
+  writeToScreen('error: ' + evt.data + '\n');
+
+  websocket.close();
+
+  document.getElementsByName("connectButton").disabled = false;
+  document.getElementsByName("disconnectButton").disabled = true;      
+}
+
+function doSend(message)  {       // 서버로 메시지 전송
+  writeToScreen("sent: " + message + '\n'); 
+  websocket.send(message);
+}
+
+function writeToScreen(message)  {        // 테스트 로그 창에 출력. (테스트용)
+  document.getElementById("outText").value += message;
+  document.getElementById("outText").scrollTop = document.getElementById("outText").scrollHeight;
+}
+
+function clearText() {        // 테스트 로그 창 초기화 (테스트용)
+  document.getElementById("outText").value = "";
+}
+
+function doDisconnect() {         // 서버 연결 끊기
+  websocket.close();
+}
+
+function changeSpecial() {        // 신발장 스페셜 케어 ON-OFF 함수
+  if (document.getElementById("specialBtn").checked == true) {
+    doSend("3fansON");
+    toast('신발장 - 스페셜 케어를 시작합니다.');
+  }
+  else {
+    doSend("3fansOFF");
+    toast("신발장 - 스페셜 케어를 종료합니다. ");
+  }
+}
+ 
+function changeNormal() {         // 신발장 노말 케어 ON-OFF 함수
+  if (document.getElementById("normalBtn").checked == true) {
+    doSend("3fannON");
+    toast("신발장 - 노말 케어를 시작합니다. ");
+  }
+  else {
+    doSend("3fannOFF");
+    toast("신발장 - 노말 케어를 종료합니다. ");
+  }
+}
+
+function changeBathfan() {        // 욕실 자동 Fan 설정 ON-OFF 함수
+  if (document.getElementById("bFanBtn").checked == true) {
+    doSend("6AUTOON");
+    toast("욕실 - 자동 Fan 설정                                                     - 습도가 높으면 Fan이 자동으로 동작합니다. ");
+  }
+  else {
+    doSend("6AUTOOFF");
+    toast("욕실 - 자동 Fan 설정 해제                                                - Fan이 수동으로 동작합니다. ");
+  }
+}
+
+function changeUmb() {            // 우산꽂이 Fan ON-OFF 함수
+  if (document.getElementById("umbBtn").checked == true) {
+    doSend("4fanON");
+    toast("우산꽂이 - Fan이 동작합니다. ");
+  }
+  else {
+    doSend("4fanOFF");
+    toast("우산꽂이 - Fan이 정지합니다. ");
+  }
+}
+
+function specialShoeIn() {          // 신발장 스페셜 케어 칸 신발 들어올 경우 함수
+  document.getElementById("specialBtn").disabled = false;
+  document.getElementById("specialBtn").checked = true;
+  document.getElementById("specialFrame").style.backgroundColor = "#A82745";
+  document.getElementById("sFont").style.color = "white";
+  toast('신발장 - 스페셜 케어를 시작합니다.');
+}
+
+function specialShoeOut() {         // 신발장 스페셜 케어 칸 신발 나갈 경우 함수
+  if (document.getElementById("specialBtn").checked == true)
+    document.getElementById("specialBtn").checked = false;
+  document.getElementById("specialBtn").disabled = true;
+  document.getElementById("specialFrame").style.backgroundColor = "rgba(237,237,237,223)";
+  document.getElementById("sFont").style.color = "black";
+  toast('신발장 - 스페셜 케어를 종료합니다.');
+}
+
+function normalShoeIn() {           // 신발장 노말 케어 칸 신발 들어올 경우 함수
+  document.getElementById("normalBtn").disabled = false;
+  document.getElementById("normalBtn").checked = true;
+  document.getElementById("normalFrame").style.backgroundColor = "#A82745";
+  document.getElementById("nFont").style.color = "white";
+  toast('신발장 - 노말 케어를 시작합니다.');
+}
+
+function normalShoeOut() {          // 신발장 노말 케어 칸 신발 나갈 경우 함수
+  if (document.getElementById("normalBtn").checked == true)
+    document.getElementById("normalBtn").checked = false;
+  document.getElementById("normalBtn").disabled = true;
+  document.getElementById("normalFrame").style.backgroundColor = "rgba(237,237,237,223)";
+  document.getElementById("nFont").style.color = "black";
+  toast('신발장 - 노말 케어를 종료합니다.');
+}
+
+function umbIn() {                  // 우산꽂이 우산 들어올 경우 함수
+  document.getElementById("umbBtn").disabled = false;
+  document.getElementById("umbBtn").checked = true;
+  document.getElementById("umbFrame").style.backgroundColor = "#A82745";
+  document.getElementById("umbFrame").style.color = "white";
+  doSend("4fanON");
+  toast("우산꽂이 - Fan이 동작합니다. ");
+}
+
+function umbOut() {                 // 우산꽂이 우산 나갈 경우 함수
+  if (document.getElementById("umbBtn").checked == true) {
+    doSend("4fanOFF");
+    document.getElementById("umbBtn").checked = false;
+  }
+  document.getElementById("umbBtn").disabled = true;
+  document.getElementById("umbFrame").style.backgroundColor = "rgba(237,237,237,223)";
+  document.getElementById("umbFrame").style.color = "black";
+  toast("우산꽂이 - Fan이 정지합니다. ");
+}
+
+function waterFull() {             // 우산꽂이 물통 가득 찰 경우 함수
+  document.getElementById('water').src='images/raindrop-close.png';
+  toast("우산꽂이 - 물통이 가득 찼습니다. 물통을 비워주세요. ");
+}
+
+function tAin() {                  // 욕실 칫솔 A 들어올 경우 함수
+  document.getElementById('tframeA').style.backgroundColor = '#A82745';
+  document.getElementById("tframeA").style.color = "white";
+}
+
+function tAout() {                 // 욕실 칫솔 A 나갈 경우 함수
+  document.getElementById('tframeA').style.backgroundColor = 'rgba(237,237,237,223)';
+  document.getElementById("tframeA").style.color = "black";
+}
+
+function tBin() {                  // 욕실 칫솔 B 들어올 경우 함수
+  document.getElementById('tframeB').style.backgroundColor = '#A82745';
+  document.getElementById("tframeB").style.color = "white";
+}
+
+function tBout() {                 // 욕실 칫솔 B 나갈 경우 함수
+  document.getElementById('tframeB').style.backgroundColor = 'rgba(237,237,237,223)';
+  document.getElementById("tframeB").style.color = "black";
+}
+
+function doorIn() {           // 현관 사람 들어올 경우 함수 - 구글 스프레드시트로 IN 신호 전송
+  $.ajax({
+    url: "https://script.google.com/macros/s/AKfycbxnHvW900pl95K5d5xnHlAYMc0fziOYF6NBnZOZuSPNUdSpPQpk/exec",
+    data: {
+      Status :"IN "
+      },
+      type: "POST"
+  });
+}
+
+function doorOut() {         // 현관 사람 나갈 경우 함수 - 구글 스프레드시트로 OUT 신호 전송
+  $.ajax({
+    url: "https://script.google.com/macros/s/AKfycbxnHvW900pl95K5d5xnHlAYMc0fziOYF6NBnZOZuSPNUdSpPQpk/exec",
+    data: {
+      Status :"OUT"
+      },
+      type: "POST"
+  });
+}
+
+function humidChange(hum) {           // 욕실 습도 표시 함수
+  document.getElementById("humid").textContent = hum;
+  if (hum >= 80 && document.getElementById("bFanBtn").checked == true)
+    toast("욕실 - 습도가 높아 Fan이 동작합니다. ");
+}
+
+function tAchange(num) {              // 욕실 칫솔 A 사용횟수 표시 함수
+  document.getElementById("tnumA").textContent = num;
+  if (num < 10) document.getElementById("tstatA").textContent = "양호";
+  else if (num < 20) document.getElementById("tstatA").textContent = "교체임박";
+  else {
+    document.getElementById("tstatA").textContent = "교체요망";
+    toast("욕실 - 1번 칫솔의 교체 시기가 경과되었습니다. 칫솔을 교체해주세요. ");
+  }
+}
+
+function tBchange(num) {              // 욕실 칫솔 B 사용횟수 표시 함수
+  document.getElementById("tnumB").textContent = num;
+  if (num < 10) document.getElementById("tstatB").textContent = "양호";
+  else if (num < 20) document.getElementById("tstatB").textContent = "교체임박";
+  else {
+    document.getElementById("tstatB").textContent = "교체요망";
+    toast("욕실 - 2번 칫솔의 교체 시기가 경과되었습니다. 칫솔을 교체해주세요. ");
+  }
+}
+
+function uTimeChange(num) {           // 우산꽂이 날씨 업데이트 시간 표시 함수
+  document.getElementById("umbTime").textContent = num;
+}
+
+var playCheck = 0;
+function playChange() {             // 스피커 재생 / 정지 함수
+  if (playCheck == 0) {
+    document.getElementById('play').src='images/pause.png';
+    doSend("2musicON");
+    playCheck = 1;
+  }
+  else {
+    document.getElementById('play').src='images/play.png';
+    doSend("2musicOFF");
+    playCheck = 0;
+  }
+}
+
+function toast(text){               // toast 사용을 위한 함수
+  var lunaReq= webOS.service.request("luna://com.webos.notification",
+  {
+      method:"createToast",
+      
+      parameters:{
+          "sourceId" : "com.wshome.app",
+          "message" : text,
+          "onclick" : {"appId":"com.wshome.app"},
+      },
+      
+      onSuccess: function (args) {
+          console.log("success")
+         // webOS.info("GETTIME_SUCCESS", {"APP_NAME": "example web app"}, "UTC : " + args.utc);
+      },
+      onFailure: function (args) {
+          console.log("failed")
+              //webOS.error("GETTIME_FAILED", {"APP_NAME": "example web app"}, "errorText : " + args.errorText);
+      }
+  });
+}
+
+function clock() {            // 대쉬보드 현재시간 표시 함수
+  var today = new Date();
+  var year = today.getFullYear();
+  var month = today.getMonth();
+  var date = today.getDate();
+  var day = today.getDay();
+  var week = ['일','월','화','수','목','금','토'];
+  var hours = today.getHours();
+  var minutes = today.getMinutes();
+  var seconds = today.getSeconds();
+
+  document.getElementById('clock').innerHTML = year + '년 ' + (month+1) + '월 ' + date + '일 ' + week[day] + '요일  ' + 
+  (hours < 10 ? '0' + hours : hours) + ':' + (minutes < 10 ? '0' + minutes : minutes) + ':' + (seconds < 10 ? '0' + seconds : seconds);
+}
+
+
+function clockInit() {       // 현재시간 표시 22
+  clock();
+  setInterval(clock,1000);
+}
+
+
+window.addEventListener("load", init, false);        // 페이지 업로드 시 초기 함수 시작

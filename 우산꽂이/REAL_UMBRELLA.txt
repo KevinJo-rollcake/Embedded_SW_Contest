@@ -1,0 +1,277 @@
+#include <Arduino.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266WiFiMulti.h>
+#include <WebSocketsClient.h>
+#include <SoftwareSerial.h>
+#include <Hash.h>
+#define USE_SERIAL Serial
+#define PSD_PIN A0
+
+const char* ssid = "Waynejo";            
+const char* pass = "12345678a";               
+
+const int trigPin = 13;
+const int echoPin = 15;
+const int FAN = 12;
+const int water = 16;
+const int led=14;
+const int sunny=5;
+const int cloud=4;
+const int rain=0;
+const int snow=2;
+
+int umbrella_FAN = 1; 
+int oncnt_water = 0;      //cnt변수들은 서버로 통신할 때 한번만 데이터를 보낼 수 있도록 하는 변수
+int oncnt_umbrella = 0;
+int offcnt_umbrella = 0;
+ 
+float cur_distance =0;      //초음파 센서 값의 현재 값과 과거 값을 의미하는 변수, 필터의 역할 수행
+float pre_distance =100;
+
+String wttime;
+ESP8266WiFiMulti WiFiMulti;
+WebSocketsClient webSocket;
+
+unsigned long ulPreTime = -200000; //초기에 한번은 필히 실행될 수 있도록 -200000으로 설정
+bool flag_stop;
+void webSocketEvent(WStype_t type, uint8_t * payload, size_t lenght) { //웹소켓 함수
+    switch(type) {
+        case WStype_DISCONNECTED:
+            USE_SERIAL.printf("[WSc] Disconnected!\n");
+            break;
+        case WStype_CONNECTED:
+        {
+        }
+            break;             
+        case WStype_TEXT: //사용자의 명령을 받는 부분
+        {
+            USE_SERIAL.printf("[WSc] get text: %s\n", payload);
+            String text = String((char *) &payload[0]);
+            if (text == "\"4fanOFF\"")
+            {
+              umbrella_FAN = 0;
+            }
+            else if (text == "\"4fanON\"")
+            {
+              umbrella_FAN = 1;
+            }
+        }
+            break;
+        case WStype_BIN:
+            USE_SERIAL.printf("[WSc] get binary lenght: %u\n", lenght);
+            hexdump(payload, lenght);
+            // send data to server
+            // webSocket.sendBIN(payload, lenght);
+            break;
+    }
+}
+
+String weather;
+WiFiClient client;
+
+void setup() {
+    pinMode(trigPin, OUTPUT);
+    pinMode(FAN, OUTPUT);
+    pinMode(echoPin, INPUT);
+    pinMode(led, OUTPUT);
+    pinMode(sunny, OUTPUT);
+    digitalWrite(sunny, LOW);
+    pinMode(cloud, OUTPUT);
+    digitalWrite(cloud, LOW);
+    pinMode(rain, OUTPUT);
+    digitalWrite(rain, LOW);
+    pinMode(snow, OUTPUT);
+    digitalWrite(snow, LOW);
+
+    pinMode(A0, INPUT);
+    USE_SERIAL.begin(115200);
+    USE_SERIAL.setDebugOutput(true);
+    USE_SERIAL.println();
+    USE_SERIAL.println();
+    USE_SERIAL.println();
+
+    for(uint8_t t = 4; t > 0; t--) {
+        USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);
+        USE_SERIAL.flush();
+        delay(1000);
+    }
+    
+    WiFiMulti.addAP("Waynejo", "12345678a");
+    while(WiFiMulti.run() != WL_CONNECTED) {
+        delay(100);
+        Serial.println(".");
+    }
+
+    webSocket.begin("13.125.160.216",9998); //원래 192.168.43.239, 81 >>>>> aws가 아닌 사용하던 기존 핫스팟 데이터
+    //13.209.73.198, 9998 (aws)
+    webSocket.onEvent(webSocketEvent);
+}
+ 
+const String KMA_url = "/wid/queryDFSRSS.jsp?zone=4127152500";
+const char* wSERVER = "www.kma.go.kr";
+ 
+void GetWeatherInfromWIFI() // 날씨 정보를 기상청 RSS를 통해서 가져오는 함수
+{
+  const int httpPort = 80;
+  if (!client.connect(wSERVER, httpPort)) {
+    Serial.println("connection failed");
+    delay(100);
+  }
+  int i=0;
+  String temp;
+  String tmp_str;
+  int cnt=0;
+  float t=0;
+  Serial.println("start connect webserver");
+  client.setTimeout(5000);
+  client.flush();
+  if (client.connect(wSERVER, httpPort)) {
+    client.print(String("GET ") + KMA_url + " HTTP/1.1\r\n" +
+    "Host: " + wSERVER + "\r\n" + 
+    "Connection: close\r\n\r\n");
+  }
+   delay(1000);
+    while(client.available()){    //파싱 해오는 반복문
+      yield();
+      String line = client.readStringUntil('\n');
+      i= line.indexOf("</hour>");
+      if(i>0){
+        tmp_str="<hour>";
+        wttime = line.substring(line.indexOf(tmp_str)+tmp_str.length(),i);
+        Serial.print(wttime+":00  ");
+        wttime = wttime+":00";
+      }
+
+      i= line.indexOf("</wfEn>");
+      if(i>0){
+        tmp_str="<wfEn>";
+        weather = line.substring(line.indexOf(tmp_str)+tmp_str.length(),i);
+        Serial.println(weather+" ");  
+        break;
+      }
+    }
+}
+
+void weatherLED()   // 날씨에 맞는 LED를 키고 해당 정보를 전송하는 함수
+{
+ if(weather == "Clear" or weather=="Partly Cloudy")
+ {
+ digitalWrite(sunny, HIGH);
+ webSocket.sendTXT("4sunny");
+ }
+
+ else if(weather == "Mostly Cloudy" or weather=="Cloudy" )
+ {
+ digitalWrite(cloud, HIGH);
+ webSocket.sendTXT("4cloudy");
+ }
+
+ else if(weather == "Rain" or weather=="Snow/Rain" or weather == "Shower")
+ {
+ digitalWrite(rain, HIGH);
+ webSocket.sendTXT("4rain");
+ }
+
+ else if(weather == "Snow")
+ {
+ digitalWrite(snow, HIGH);
+ webSocket.sendTXT("4snow");
+ }
+}
+
+ 
+
+void umbrella()  // 우산이 감지되면 FAN이 작동할 수 있도록 하는 함수
+{
+
+  float volts, distance;
+  volts = analogRead(A0);
+  distance = map(volts, 0, 1024, 0, 255);
+
+  cur_distance = distance;
+  distance =(cur_distance * 0.2) + (pre_distance * 0.8);
+  pre_distance=distance;
+  
+  //Serial.println(distance);
+  delay(10);
+  if (umbrella_FAN == 1) // 초기 및 사용자가 원할 때만 작동하도록 한다.
+  {
+    if (distance > 100)
+    {
+      digitalWrite(FAN, HIGH);
+      if(oncnt_umbrella == 0)
+      {
+        webSocket.sendTXT("4umbEX"); //우산 감지
+        oncnt_umbrella = 1;
+      }
+    }
+    else
+    {
+      digitalWrite(FAN,LOW);
+      if(oncnt_umbrella == 1)
+      {
+        webSocket.sendTXT("4umbNO"); //우산이 없음
+        oncnt_umbrella = 0;
+      }
+    }
+ } 
+  else
+  {
+    digitalWrite(FAN, LOW);
+    if (distance > 100)
+    {
+      if(offcnt_umbrella == 0)
+      {
+        webSocket.sendTXT("4umbEX"); //우산 감지
+        offcnt_umbrella = 1;
+      }
+    }
+    else
+    {
+      if(offcnt_umbrella == 1)
+      {
+        webSocket.sendTXT("4umbNO"); //우산이 없음
+        offcnt_umbrella = 0;
+      }
+    }
+  }
+}
+
+void waterlevel()  // 우산꽂이의 물통을 표현하는 함수, 일정 수준이 되면 센서 값이 1이 된다.
+{
+  int level = digitalRead(water);
+  if (level == 1)
+  {
+   digitalWrite(led, HIGH);
+   if(oncnt_water == 0)
+   {
+   webSocket.sendTXT("4waterFull"); //물이 가득찬 상태
+   oncnt_water = 1;
+   }
+  }
+
+  else if(level == 0)
+  {
+   digitalWrite(led, LOW);
+   if(oncnt_water == 1)
+   {
+    webSocket.sendTXT("4waterEmpty"); //물이 없음
+    oncnt_water=0;
+   }
+  }
+}
+
+void loop() {
+  webSocket.loop();
+  umbrella();
+  waterlevel();
+
+  unsigned long ulCurTime = millis();
+  if (ulCurTime - ulPreTime >= 10000) //10초에 한번 날씨 정보를 받아온다. 실생활의 적용에서는 하루에 두번 혹은 한번으로 바꿀 수 있을 것으로 생각된다.
+  {
+    GetWeatherInfromWIFI();
+    weatherLED();
+    webSocket.sendTXT("4time:"+wttime); //4time:18:00
+    ulPreTime = ulCurTime;
+  }
+}
